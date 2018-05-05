@@ -305,6 +305,5 @@ func (app *App) updateIPsSubnet(oldSubnet *models.Subnet, newSubnet *models.Subn
 			app.Mongo.EditDevice(&device)
 		}
 	}
-	// TODO actually change these devices
 	return nil
 }
