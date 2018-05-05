@@ -17,8 +17,12 @@
         <span>{{.Mask}}</span>
       </div>
       <div class="metadata">
-        <time>TEST</time>
-        <time>TEST2</time>
+        <strong>Parent ID:</strong>
+        <span>{{.ParentID.Hex}}</span>
+      </div>
+      <div class="metadata">
+        <time>Created: {{humanDate .CreatedTime}}</time>
+        <time>Edited: {{humanDate .EditedTime}}</time>
       </div>
   {{end}}
   {{if .Devices}}

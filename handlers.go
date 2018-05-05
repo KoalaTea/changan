@@ -55,19 +55,8 @@ func (app *App) CreateUser(w http.ResponseWriter, r *http.Request) {
 		RePassword: r.PostForm.Get("repassword"),
 	}
 
-	if !form.Valid() {
-		app.RenderHTML(w, r, "signup.page.html", &HTMLData{Form: form})
-	}
-
-	user := models.User{
-		Username: form.Name,
-		Password: form.Password,
-		APIKey:   "not quite 8",
-		Active:   false,
-	}
-	err = app.Database.AddUser(user)
-	if err == models.ErrDuplicateEmail { // this error is not real TODO
-		//add a form.Failures here TODO
+	form, err = app.addUser(form)
+	if err == ErrInvalid {
 		app.RenderHTML(w, r, "signup.page.html", &HTMLData{Form: form})
 		return
 	} else if err != nil {
@@ -328,6 +317,31 @@ func (app *App) viewSubnet(w http.ResponseWriter, r *http.Request) {
 		Subnet:  subnet,
 		Devices: devices,
 	})
+}
+
+func (app *App) createSubnet(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		app.ClientError(w, http.StatusBadRequest)
+		return
+	}
+
+	form := &forms.NewSubnet{
+		Name:       r.PostForm.Get("name"),
+		IP:         r.PostForm.Get("ip"),
+		MaskString: r.PostForm.Get("mask"),
+	}
+
+	form, err = app.addSubnet(form)
+	if err == ErrInvalid {
+		app.RenderHTML(w, r, "new.subnet.page.html", &HTMLData{Form: form})
+		return
+	} else if err != nil {
+		app.ServerError(w, err)
+		return
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/subnets/%s", form.ID.Hex()), http.StatusSeeOther)
 }
 
 func (app *App) viewReport(w http.ResponseWriter, r *http.Request) {

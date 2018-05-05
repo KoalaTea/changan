@@ -61,6 +61,13 @@ func (db Database) GetDevicesForSubnet(subnet *Subnet) ([]Device, error) {
 	return devices, err
 }
 
+// TODO better way of dealing with Mongo
+func (db Database) GetFullDevicesForSubnet(subnet *Subnet) ([]Device, error) {
+	var devices []Device
+	err := db.C("devices").Find(bson.M{"interfaces.ips.subnet_id": subnet.ID}).All(&devices)
+	return devices, err
+}
+
 func (db Database) GetAllSubnets() ([]Subnet, error) {
 	var subnets []Subnet
 	err := db.C("subnets").Find(bson.M{}).All(&subnets)

@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -26,10 +28,16 @@ type IP struct {
 }
 
 type Subnet struct {
-	ID   bson.ObjectId `bson:"_id" json:"subnet_id"`
-	Name string        `bson:"subnet_name" json:"subnet_name"`
-	IP   string        `bson:"ip" json:"ip"`
-	Mask int           `bson:"mask" json:"mask"`
+	ID          bson.ObjectId   `bson:"_id" json:"subnet_id"`
+	Name        string          `bson:"subnet_name" json:"subnet_name"`
+	IP          string          `bson:"ip" json:"ip"`
+	Mask        int             `bson:"mask" json:"mask"`
+	CIDR        string          `bson:"cidr" json:"cidr"`
+	ParentID    bson.ObjectId   `bson:"parent_id,omitempty" json:"-"`
+	HasChildren bool            `bson:"has_children" json:"-"`
+	Children    []bson.ObjectId `bson:"children" json:"-"`
+	CreatedTime time.Time       `bson:"created_timestamp" json:"created_timestamp"`
+	EditedTime  time.Time       `bson:"edited_timestamp" json:"edited_timestamp"`
 }
 
 type Report struct {

@@ -19,12 +19,15 @@ device_objs = [
 
 subnet_ids = {}
 
+'''
 subnet_objs = [
     ('china office', '172.16.9.0', 24),
     ('russia office', '172.16.10.0', 24),
     ('LA office', '172.16.11.0', 24),
     ('Prod', '10.100.0.0', 16)
 ]
+'''
+subnet_objs = [] #moves to a dynamic adder
 
 def insert_data(db):
     subnets = db.subnets
@@ -73,7 +76,7 @@ def main():
     client.drop_database("changan_test")
     db = client.changan_test
 
-    insert_data(db)
+    #insert_data(db)
 
 if __name__ == '__main__':
     main()

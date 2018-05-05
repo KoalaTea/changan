@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"net"
 	"net/http"
 
 	"github.com/koalatea/changan/pkg/forms"
@@ -55,8 +53,8 @@ func (app *App) apiViewDevices(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) apiAddDevices(w http.ResponseWriter, r *http.Request) {
-	var subnets []models.Subnet
-	gotSubnets := false
+	//var subnets []models.Subnet
+	//gotSubnets := false
 	newDevice := &forms.NewDevice{}
 
 	decoder := json.NewDecoder(r.Body)
@@ -70,83 +68,89 @@ func (app *App) apiAddDevices(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !newDevice.Valid() {
-		// TODO gotta do this guy
-		http.Error(w, "test", http.StatusInternalServerError)
-		return
-	}
+	/*
+		if !newDevice.Valid() {
+			// TODO gotta do this guy
+			http.Error(w, "test", http.StatusInternalServerError)
+			return
+		}
 
-	// convert form.Interfaces and form.IPs to models
-	var interfaces []models.Interface
-	for _, newDeviceInterface := range newDevice.Interfaces {
-		var newInterface models.Interface
-		newInterface.MAC = newDeviceInterface.MAC
-		if newInterface.MAC == "" {
-			newInterface.MAC = "FF:FF:FF:FF:FF:FF"
-		}
-		newInterface.Name = newDeviceInterface.Name
-		if newInterface.Name == "" {
-			newInterface.Name = "unknown" // TODO lets move this to a more generic area like forms
-			// as this will have to happen in web console too.
-		}
-		var ips []models.IP
-		for _, ip := range newDeviceInterface.IPs {
-			newIP := models.IP{
-				IP:       ip.IP,
-				SubnetID: ip.SubnetID,
+		// convert form.Interfaces and form.IPs to models
+		var interfaces []models.Interface
+		for _, newDeviceInterface := range newDevice.Interfaces {
+			var newInterface models.Interface
+			newInterface.MAC = newDeviceInterface.MAC
+			if newInterface.MAC == "" {
+				newInterface.MAC = "FF:FF:FF:FF:FF:FF"
 			}
-			// If there is no subnet id we will figure out the subnet for the ip
-			if newIP.SubnetID == bson.ObjectId("") { // Could be improved in
-				// If subnets have not been queried from the database yet get them
-				if !gotSubnets {
-					subnets, err = app.Mongo.GetAllSubnets()
-					if err != nil {
-						app.APIServerError(w, err)
-						return
-					}
-
-					app.Logger.Debugf("api add device had no subnet id for ip '%s'", ip.IP)
-					app.Logger.Debugf("so got subnets: %+v", subnets)
-					gotSubnets = true
+			newInterface.Name = newDeviceInterface.Name
+			if newInterface.Name == "" {
+				newInterface.Name = "unknown" // TODO lets move this to a more generic area like forms
+				// as this will have to happen in web console too.
+			}
+			var ips []models.IP
+			for _, ip := range newDeviceInterface.IPs {
+				newIP := models.IP{
+					IP:       ip.IP,
+					SubnetID: ip.SubnetID,
 				}
-
-				// check if ip is in each subnet and when one is found that the ip is in set that as it's subnet id
-				// TODO improve this to work for the lowest level when parent subnets exist
-				netIP := net.ParseIP(ip.IP)
-				for _, subnet := range subnets {
-					_, ipNet, _ := net.ParseCIDR(fmt.Sprintf("%s/%d", subnet.IP, subnet.Mask))
-					if ipNet.Contains(netIP) {
-						app.Logger.Debugf("device '%s' has ip '%s' that matched subnet %s", newDevice.Name,
-							ip.IP, ipNet)
-						if subnet.IP != "0.0.0.0" {
-							newIP.SubnetID = subnet.ID
+				// If there is no subnet id we will figure out the subnet for the ip
+				if newIP.SubnetID == bson.ObjectId("") { // Could be improved in
+					// If subnets have not been queried from the database yet get them
+					if !gotSubnets {
+						subnets, err = app.Mongo.GetAllSubnets()
+						if err != nil {
+							app.APIServerError(w, err)
+							return
 						}
+
+						app.Logger.Debugf("api add device had no subnet id for ip '%s'", ip.IP)
+						app.Logger.Debugf("so got subnets: %+v", subnets)
+						gotSubnets = true
 					}
-					// dynamically figure out ip
+
+					// check if ip is in each subnet and when one is found that the ip is in set that as it's subnet id
+					// TODO improve this to work for the lowest level when parent subnets exist
+					netIP := net.ParseIP(ip.IP)
+					for _, subnet := range subnets {
+						_, ipNet, _ := net.ParseCIDR(fmt.Sprintf("%s/%d", subnet.IP, subnet.Mask))
+						if ipNet.Contains(netIP) {
+							app.Logger.Debugf("device '%s' has ip '%s' that matched subnet %s", newDevice.Name,
+								ip.IP, ipNet)
+							if subnet.IP != "0.0.0.0" {
+								newIP.SubnetID = subnet.ID
+							}
+						}
+						// dynamically figure out ip
+					}
+					if newIP.SubnetID == bson.ObjectId("") {
+						id2 := bson.NewObjectId() // TODO when subnets are implemented make this auto figure out
+						newIP.SubnetID = id2
+					}
 				}
-				if newIP.SubnetID == bson.ObjectId("") {
-					id2 := bson.NewObjectId() // TODO when subnets are implemented make this auto figure out
-					newIP.SubnetID = id2
-				}
+				ips = append(ips, newIP)
 			}
-			ips = append(ips, newIP)
+			newInterface.IPs = ips
+			interfaces = append(interfaces, newInterface)
 		}
-		newInterface.IPs = ips
-		interfaces = append(interfaces, newInterface)
-	}
 
-	id := bson.NewObjectId()
-	device := &models.Device{ //should I make this a pointer?
-		ID:         id,
-		Name:       newDevice.Name,
-		Team:       newDevice.Team,
-		Owner:      newDevice.Owner,
-		Location:   newDevice.Location,
-		Interfaces: interfaces,
-	}
+		id := bson.NewObjectId()
+		device := &models.Device{ //should I make this a pointer?
+			ID:         id,
+			Name:       newDevice.Name,
+			Team:       newDevice.Team,
+			Owner:      newDevice.Owner,
+			Location:   newDevice.Location,
+			Interfaces: interfaces,
+		}
 
-	err = app.Mongo.AddDevice(device)
-	if err != nil {
+		err = app.Mongo.AddDevice(device)
+	*/
+	newDevice, err = app.addDevice(newDevice)
+	if err == ErrInvalid {
+		app.APIServerError(w, err)
+		return
+	} else if err != nil {
 		app.APIServerError(w, err)
 		return
 	}
@@ -252,22 +256,11 @@ func (app *App) apiAddSubnets(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if !newSubnet.Valid() {
-		// TODO gotta do this guy
-		http.Error(w, "test", http.StatusInternalServerError)
+	newSubnet, err = app.addSubnet(newSubnet)
+	if err == ErrInvalid {
+		app.ReturnAPI(w, r, &APIData{Error: "subnet is invalid"}) // TODO better error from form for API
 		return
-	}
-
-	id := bson.NewObjectId()
-	subnet := &models.Subnet{
-		ID:   id,
-		Name: newSubnet.Name,
-		IP:   newSubnet.IP,
-		Mask: newSubnet.Mask,
-	}
-
-	err = app.Mongo.AddSubnet(subnet)
-	if err != nil {
+	} else if err != nil {
 		app.APIServerError(w, err)
 		return
 	}

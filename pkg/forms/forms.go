@@ -1,6 +1,7 @@
 package forms
 
 import (
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -31,11 +32,13 @@ type IP struct {
 }
 
 type NewSubnet struct {
-	ID       bson.ObjectId     `json:"subnet_id"`
-	Name     string            `json:"subnet_name"`
-	IP       string            `json:"ip"`
-	Mask     int               `json:"mask"`
-	Failures map[string]string // TODO maybe change this?
+	ID         bson.ObjectId `json:"subnet_id"`
+	Name       string        `json:"subnet_name"`
+	IP         string        `json:"ip"`
+	CIDR       string        `json:"cidr"`
+	Mask       int           `json:"mask"`
+	MaskString string
+	Failures   map[string]string // TODO maybe change this?
 }
 
 type NewReport struct {
@@ -59,6 +62,7 @@ type LoginUser struct {
 	Failures map[string]string
 }
 
+// TODO log invalid?
 func (f *NewDevice) Valid() bool {
 	f.Failures = make(map[string]string)
 
@@ -92,6 +96,15 @@ func (f *NewSubnet) Valid() bool {
 	} else if utf8.RuneCountInString(f.IP) > 45 {
 		f.Failures["IP"] = "The largest ipv6 is 45 characters long"
 	} // TODO validate ips are legitimate
+
+	if f.MaskString != "" {
+		mask, err := strconv.Atoi(f.MaskString)
+		if err != nil {
+			f.Failures["Mask"] = "Mask must be an integer"
+		} else {
+			f.Mask = mask
+		}
+	}
 
 	if f.Mask > 128 {
 		f.Failures["Mask"] = "The max ipv6 mask is 128"

@@ -12,6 +12,8 @@ import (
 	"github.com/alexedwards/scs/stores/mysqlstore"
 	"github.com/juju/loggo"
 	"github.com/koalatea/changan/pkg/models"
+	mgo "gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 func init() {
@@ -58,5 +60,29 @@ func main() {
 		Logger:    logger,
 	}
 
+	app.InitializeServer()
 	app.RunServer()
+}
+
+func (app *App) InitializeServer() {
+	// Maybe move this to an initialize function
+	_, err := app.Mongo.GetSubnetByName("default")
+	if err == mgo.ErrNotFound {
+		app.Logger.Infof("No default subnet so adding one now")
+		id := bson.NewObjectId()
+		defaultSubnet := &models.Subnet{
+			ID:          id,
+			Name:        "default",
+			IP:          "0.0.0.0",
+			Mask:        0,
+			CIDR:        "0.0.0.0/0",
+			ParentID:    id,
+			HasChildren: false,
+			CreatedTime: time.Now(),
+			EditedTime:  time.Now(),
+		}
+		app.Mongo.AddSubnet(defaultSubnet)
+	} else if err != nil {
+		panic(err)
+	}
 }

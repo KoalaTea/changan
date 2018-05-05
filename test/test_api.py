@@ -90,11 +90,12 @@ def test_subnets():
             "ip": "8.8.8.8",
             "mask": 32
             }
-    r = requests.put(url, json=subnet, verify=False)
+    r1 = requests.put(url, json=subnet, verify=False)
     r = requests.get(url, verify=False)
     subnets = r.json()['subnets']
     if not any(equal_dicts(s, subnet, ['subnet_id']) for s in subnets):
         logger.error("subnets put/add failed")
+        logger.error("{}".format(r1.json()))
 
     # Test delete
     r = requests.delete(url, json=subnet, verify=False)
